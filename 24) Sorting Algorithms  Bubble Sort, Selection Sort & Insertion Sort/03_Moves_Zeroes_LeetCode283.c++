@@ -34,6 +34,7 @@ void bruteForceSol(vector<int> &nums)
     }
 }
 
+// Optimal Solution
 void optimalSol(vector<int> &nums)
 {
     int i = -1, n = nums.size();

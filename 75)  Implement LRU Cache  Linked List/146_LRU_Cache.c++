@@ -1,94 +1,113 @@
-# include <bits/stdc++.h>
+#include <iostream>
+#include <unordered_map>
 using namespace std;
-
-struct Node {
-    int k;
-    int v;
-    Node* prev;
-    Node* next;
-
-    Node()
-        : k(0)
-        , v(0)
-        , prev(nullptr)
-        , next(nullptr) {}
-    Node(int key, int val)
-        : k(key)
-        , v(val)
-        , prev(nullptr)
-        , next(nullptr) {}
-};
 
 class LRUCache {
 public:
-    LRUCache(int capacity)
-        : cap(capacity)
-        , size(0) {
-        head = new Node();
-        tail = new Node();
+
+    class Node {
+    public:
+        int key, val;
+        Node* prev;
+        Node* next;
+
+        Node(int k, int v) {
+            key = k;
+            val = v;
+            prev = next = NULL;
+        }
+    };
+
+    Node* head;
+    Node* tail;
+    unordered_map<int, Node*> m;
+    int limit;
+
+    LRUCache(int capacity) {
+        limit = capacity;
+        head = new Node(-1, -1);
+        tail = new Node(-1, -1);
         head->next = tail;
         tail->prev = head;
     }
 
+    void addNode(Node* newNode) {
+        Node* oldNext = head->next;
+        head->next = newNode;
+        newNode->prev = head;
+        newNode->next = oldNext;
+        oldNext->prev = newNode;
+    }
+
+    void delNode(Node* oldNode) {
+        Node* oldPrev = oldNode->prev;
+        Node* oldNext = oldNode->next;
+        oldPrev->next = oldNext;
+        oldNext->prev = oldPrev;
+    }
+
     int get(int key) {
-        if (!cache.count(key)) return -1;
-        Node* node = cache[key];
-        moveToHead(node);
-        return node->v;
+        if (m.find(key) == m.end()) {
+            return -1;
+        }
+
+        Node* ansNode = m[key];
+        int ans = ansNode->val;
+
+        m.erase(key);
+        delNode(ansNode);
+        addNode(ansNode);
+        m[key] = ansNode;
+
+        return ans;
     }
 
     void put(int key, int value) {
-        if (cache.count(key)) {
-            Node* node = cache[key];
-            node->v = value;
-            moveToHead(node);
-        } else {
-            Node* node = new Node(key, value);
-            cache[key] = node;
-            addToHead(node);
-            ++size;
-            if (size > cap) {
-                node = removeTail();
-                cache.erase(node->k);
-                --size;
-            }
+        if (m.find(key) != m.end()) {
+            Node* oldNode = m[key];
+            delNode(oldNode);
+            m.erase(key);
+            delete oldNode; // free memory
         }
+
+        if (m.size() == limit) {
+            Node* lru = tail->prev;
+            m.erase(lru->key);
+            delNode(lru);
+            delete lru; // free memory
+        }
+
+        Node* newNode = new Node(key, value);
+        addNode(newNode);
+        m[key] = newNode;
     }
 
-private:
-    unordered_map<int, Node*> cache;
-    Node* head;
-    Node* tail;
-    int cap;
-    int size;
-
-    void moveToHead(Node* node) {
-        removeNode(node);
-        addToHead(node);
-    }
-
-    void removeNode(Node* node) {
-        node->prev->next = node->next;
-        node->next->prev = node->prev;
-    }
-
-    void addToHead(Node* node) {
-        node->next = head->next;
-        node->prev = head;
-        head->next = node;
-        node->next->prev = node;
-    }
-
-    Node* removeTail() {
-        Node* node = tail->prev;
-        removeNode(node);
-        return node;
+    // Destructor to clean up all nodes
+    ~LRUCache() {
+        Node* curr = head;
+        while (curr != NULL) {
+            Node* next = curr->next;
+            delete curr;
+            curr = next;
+        }
     }
 };
 
-/**
- * Your LRUCache object will be instantiated and called as such:
- * LRUCache* obj = new LRUCache(capacity);
- * int param_1 = obj->get(key);
- * obj->put(key,value);
- */
+// ---------- Test Case ----------
+int main() {
+    LRUCache cache(2); // Capacity = 2
+
+    cache.put(1, 1);
+    cache.put(2, 2);
+    cout << cache.get(1) << endl;   // Returns 1
+
+    cache.put(3, 3); // Evicts key 2
+    cout << cache.get(2) << endl;   // Returns -1 (not found)
+
+    cache.put(4, 4); // Evicts key 1
+    cout << cache.get(1) << endl;   // Returns -1 (not found)
+    cout << cache.get(3) << endl;   // Returns 3
+    cout << cache.get(4) << endl;   // Returns 4
+
+    return 0;
+}
